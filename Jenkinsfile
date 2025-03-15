@@ -5,6 +5,7 @@ pipeline {
         IMAGE_NAME = "htmx-demo"
         REGISTRY = "registry.digitalocean.com/kube-app-registry"
         DEPLOYMENT_FILE = "deployment.yaml"
+        KUBECONFIG_PATH = ""
     }
 
     stages {
