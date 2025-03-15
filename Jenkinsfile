@@ -41,33 +41,21 @@ pipeline {
             }
         }
 
-        stage('Update Kubernetes Secret YAML') {
+        stage('Create Kubernetes Secret') {
             steps {
                 withCredentials([string(credentialsId: 'DO_ACCESS_TOKEN', variable: 'DO_TOKEN')]) {
                     sh '''
-                        # Create the Docker authentication JSON
-                        DOCKER_CONFIG_JSON=$(echo -n "{\"auths\":{\"${REGISTRY}\":{\"auth\":\"$(echo -n $DO_TOKEN: | base64)\"}}}")
-
-                        # Encode the JSON to Base64
-                        BASE64_CONFIG=$(echo -n "$DOCKER_CONFIG_JSON" | base64 -w 0)
-
-                        # Update the Secret YAML file
-                        sed -i "s|<BASE64_ENCODED_CREDENTIALS>|$BASE64_CONFIG|g" $SECRET_FILE
+                        kubectl create secret docker-registry do-registry-secret \
+                            --docker-server=registry.digitalocean.com \
+                            --docker-username=unused \
+                            --docker-password=$DO_TOKEN \
+                            --docker-email=unused \
+                            --dry-run=client -o yaml | kubectl apply -f -
                     '''
                 }
             }
         }
 
-        stage('Apply Kubernetes Secret') {
-            steps {
-                withCredentials([file(credentialsId: 'KUBECONFIG_FILE', variable: 'KUBECONFIG')]) {
-                    sh '''
-                        export KUBECONFIG=/var/lib/jenkins/.kube/config
-                        kubectl apply -f do-registry-secret.yaml
-                    '''
-                }
-            }
-        }
 
         stage('Deploy to Kubernetes') {
             steps {
