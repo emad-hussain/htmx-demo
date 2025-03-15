@@ -5,8 +5,8 @@ pipeline {
         IMAGE_NAME = "htmx-demo"
         REGISTRY = "registry.digitalocean.com/kube-app-registry"
         DEPLOYMENT_FILE = "deployment.yaml"
-        DO_CLUSTER = 'k8s-htmx'
-        
+        SECRET_FILE = "do-registry-secret.yaml"  // Path to the secret file in repo
+        DO_CLUSTER = "k8s-htmx"
     }
 
     stages {
@@ -41,14 +41,55 @@ pipeline {
             }
         }
 
-         stage('Deploy to Kubernetes') {
+        stage('Update Kubernetes Secret YAML') {
+            steps {
+                withCredentials([string(credentialsId: 'DO_ACCESS_TOKEN', variable: 'DO_TOKEN'),
+                                 string(credentialsId: 'DO_USERNAME', variable: 'DO_USER')]) {
+                    script {
+                        // Generate the Base64 encoded config JSON
+                        def dockerConfigJson = """{
+                            "auths": {
+                                "${env.REGISTRY}": {
+                                    "username": "${env.DO_USER}",
+                                    "password": "${env.DO_TOKEN}"
+                                }
+                            }
+                        }""".trim()
+
+                        def base64Config = dockerConfigJson.bytes.encodeBase64().toString()
+
+                        // Read the existing YAML file from the repo
+                        def secretYaml = readFile(file: env.SECRET_FILE)
+
+                        // Replace placeholder with actual Base64-encoded secret
+                        secretYaml = secretYaml.replace("<BASE64_ENCODED_CREDENTIALS>", base64Config)
+
+                        // Write updated YAML back to the file
+                        writeFile(file: env.SECRET_FILE, text: secretYaml)
+                    }
+                }
+            }
+        }
+
+        stage('Apply Kubernetes Secret') {
             steps {
                 withCredentials([file(credentialsId: 'KUBECONFIG_FILE', variable: 'KUBECONFIG')]) {
-                sh '''
-                    export KUBECONFIG=/var/lib/jenkins/.kube/config
-                    kubectl get nodes
-                    kubectl apply -f deployment.yaml
-                '''
+                    sh '''
+                        export KUBECONFIG=/var/lib/jenkins/.kube/config
+                        kubectl apply -f do-registry-secret.yaml
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy to Kubernetes') {
+            steps {
+                withCredentials([file(credentialsId: 'KUBECONFIG_FILE', variable: 'KUBECONFIG')]) {
+                    sh '''
+                        export KUBECONFIG=/var/lib/jenkins/.kube/config
+                        kubectl get nodes
+                        kubectl apply -f deployment.yaml
+                    '''
                 }
             }
         }
