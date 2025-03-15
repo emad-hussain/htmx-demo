@@ -43,15 +43,13 @@ pipeline {
 
         stage('Update Kubernetes Secret YAML') {
             steps {
-                withCredentials([string(credentialsId: 'DO_ACCESS_TOKEN', variable: 'DO_TOKEN'),
-                                 string(credentialsId: 'DO_USERNAME', variable: 'DO_USER')]) {
+                withCredentials([string(credentialsId: 'DO_ACCESS_TOKEN', variable: 'DO_TOKEN')]) {
                     script {
-                        // Generate the Base64 encoded config JSON
+                        // Generate the Base64 encoded config JSON using only the token
                         def dockerConfigJson = """{
                             "auths": {
                                 "${env.REGISTRY}": {
-                                    "username": "${env.DO_USER}",
-                                    "password": "${env.DO_TOKEN}"
+                                    "auth": "${"${env.DO_TOKEN}:".bytes.encodeBase64().toString()}"
                                 }
                             }
                         }""".trim()
