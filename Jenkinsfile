@@ -5,7 +5,7 @@ pipeline {
         IMAGE_NAME = "htmx-demo"
         REGISTRY = "registry.digitalocean.com/kube-app-registry"
         DEPLOYMENT_FILE = "deployment.yaml"
-        KUBECONFIG_PATH = ""
+        
     }
 
     stages {
@@ -40,13 +40,14 @@ pipeline {
 
         stage('Deploy to Kubernetes') {
             steps {
-                    withCredentials([file(credentialsId: 'KUBECONFIG_FILE', variable: 'KUBECONFIG')]) {
-                        sh '''
-                            export KUBECONFIG=$KUBECONFIG
-                            kubectl get nodes
-                            kubectl apply -f deployment.yaml
-                        '''
-                    }
+                withCredentials([file(credentialsId: 'KUBECONFIG_FILE', variable: 'KUBECONFIG')]) {
+                    sh '''
+                        echo "Using KUBECONFIG: $KUBECONFIG"
+                        export KUBECONFIG=$KUBECONFIG
+                        kubectl apply -f ${DEPLOYMENT_FILE}
+                        kubectl rollout status deployment/htmx-demo
+                    '''
+                }
             }
         }
     }
