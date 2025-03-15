@@ -5,6 +5,7 @@ pipeline {
         IMAGE_NAME = "htmx-demo"
         REGISTRY = "registry.digitalocean.com/kube-app-registry"
         DEPLOYMENT_FILE = "deployment.yaml"
+        DO_CLUSTER = 'k8s-htmx'
         
     }
 
@@ -21,12 +22,14 @@ pipeline {
             }
         }
 
-        stage('Login to DOCR') {
+        stage('Login to DigitalOcean') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'DOCR_CREDENTIALS', usernameVariable: 'DOCR_USER', passwordVariable: 'DOCR_PASS')]) {
-                    sh """
-                        echo \$DOCR_PASS | docker login ${REGISTRY} -u \$DOCR_USER --password-stdin
-                    """
+                withCredentials([string(credentialsId: 'DO_ACCESS_TOKEN', variable: 'DO_TOKEN')]) {
+                    sh '''
+                        export DIGITALOCEAN_ACCESS_TOKEN=$DO_TOKEN
+                        doctl auth init --access-token $DO_TOKEN
+                        doctl kubernetes cluster kubeconfig save $DO_CLUSTER
+                    '''
                 }
             }
         }
@@ -38,15 +41,14 @@ pipeline {
             }
         }
 
-        stage('Deploy to Kubernetes') {
+         stage('Deploy to Kubernetes') {
             steps {
                 withCredentials([file(credentialsId: 'KUBECONFIG_FILE', variable: 'KUBECONFIG')]) {
-                    sh '''
-                        echo "Using KUBECONFIG: $KUBECONFIG"
-                        export KUBECONFIG=$KUBECONFIG
-                        kubectl apply -f ${DEPLOYMENT_FILE}
-                        kubectl rollout status deployment/htmx-demo
-                    '''
+                sh '''
+                    export KUBECONFIG=$KUBECONFIG
+                    kubectl get nodes
+                    kubectl apply -f deployment.yaml
+                '''
                 }
             }
         }
