@@ -22,15 +22,19 @@ pipeline {
             }
         }
 
-        stage('Deploy to Kubernetes') {
+        stage('Check KUBECONFIG') {
             steps {
-                withCredentials([file(credentialsId: 'KUBECONFIG', variable: 'KUBECONFIG')]) {
-                    sh """
-                        kubectl apply -f deployment.yaml --kubeconfig=\$KUBECONFIG
-                        kubectl apply -f service.yaml --kubeconfig=\$KUBECONFIG
-                    """
+                withCredentials([file(credentialsId: 'KUBECONFIG_FILE', variable: 'KUBECONFIG')]) {
+                    sh '''
+                        echo "Checking if KUBECONFIG exists..."
+                        ls -l $KUBECONFIG || echo "KUBECONFIG file not found!"
+                        cat $KUBECONFIG || echo "Cannot read KUBECONFIG!"
+                        export KUBECONFIG=$KUBECONFIG
+                        kubectl get nodes
+                    '''
                 }
             }
         }
+        
     }
 }
