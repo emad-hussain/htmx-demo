@@ -37,17 +37,16 @@ pipeline {
             }
         }
 
-        stage('Deploy to Kubernetes') {
-            steps {
-                withCredentials([file(credentialsId: 'KUBECONFIG_FILE', variable: 'KUBECONFIG')]) {
-                    sh '''
-                        echo "Using KUBECONFIG: $KUBECONFIG"
-                        export KUBECONFIG=$KUBECONFIG
-                        kubectl apply -f ${DEPLOYMENT_FILE}
-                        kubectl rollout status deployment/htmx-demo
-                    '''
+        stages {
+            stage('Deploy to Kubernetes') {
+                steps {
+                    withCredentials([file(credentialsId: 'KUBECONFIG_FILE', variable: 'KUBECONFIG')]) {
+                        sh '''
+                            export KUBECONFIG=$KUBECONFIG
+                            kubectl apply -f deployment.yaml
+                        '''
+                    }
                 }
             }
-        }
     }
 }
