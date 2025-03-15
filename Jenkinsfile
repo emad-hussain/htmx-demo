@@ -45,7 +45,7 @@ pipeline {
             steps {
                 withCredentials([file(credentialsId: 'KUBECONFIG_FILE', variable: 'KUBECONFIG')]) {
                 sh '''
-                    export KUBECONFIG=$KUBECONFIG
+                    export KUBECONFIG=/var/lib/jenkins/.kube/config
                     kubectl get nodes
                     kubectl apply -f deployment.yaml
                 '''
