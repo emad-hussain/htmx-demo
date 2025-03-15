@@ -5,7 +5,7 @@ pipeline {
         IMAGE_NAME = "htmx-demo"
         REGISTRY = "registry.digitalocean.com/kube-app-registry"
         DEPLOYMENT_FILE = "deployment.yaml"
-        SECRET_FILE = "do-registry-secret.yaml"  // Path to the secret file in repo
+        SECRET_FILE = "do-registry-secret.yaml"
         DO_CLUSTER = "k8s-htmx"
     }
 
@@ -43,30 +43,17 @@ pipeline {
 
         stage('Update Kubernetes Secret YAML') {
             steps {
-                withCredentials([string(credentialsId: 'DO_ACCESS_TOKEN', variable: 'DO_TOKEN'),
-                                 string(credentialsId: 'DO_USERNAME', variable: 'DO_USER')]) {
-                    script {
-                        // Generate the Base64 encoded config JSON
-                        def dockerConfigJson = """{
-                            "auths": {
-                                "${env.REGISTRY}": {
-                                    "username": "${env.DO_USER}",
-                                    "password": "${env.DO_TOKEN}"
-                                }
-                            }
-                        }""".trim()
+                withCredentials([string(credentialsId: 'DO_ACCESS_TOKEN', variable: 'DO_TOKEN')]) {
+                    sh '''
+                        # Create the Docker authentication JSON
+                        DOCKER_CONFIG_JSON=$(echo -n "{\"auths\":{\"${REGISTRY}\":{\"auth\":\"$(echo -n $DO_TOKEN: | base64)\"}}}")
 
-                        def base64Config = dockerConfigJson.bytes.encodeBase64().toString()
+                        # Encode the JSON to Base64
+                        BASE64_CONFIG=$(echo -n "$DOCKER_CONFIG_JSON" | base64 -w 0)
 
-                        // Read the existing YAML file from the repo
-                        def secretYaml = readFile(file: env.SECRET_FILE)
-
-                        // Replace placeholder with actual Base64-encoded secret
-                        secretYaml = secretYaml.replace("<BASE64_ENCODED_CREDENTIALS>", base64Config)
-
-                        // Write updated YAML back to the file
-                        writeFile(file: env.SECRET_FILE, text: secretYaml)
-                    }
+                        # Update the Secret YAML file
+                        sed -i "s|<BASE64_ENCODED_CREDENTIALS>|$BASE64_CONFIG|g" $SECRET_FILE
+                    '''
                 }
             }
         }
