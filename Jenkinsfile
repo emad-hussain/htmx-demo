@@ -1,9 +1,10 @@
 pipeline {
     agent any
-
+    
     environment {
         IMAGE_NAME = "htmx-demo"
         REGISTRY = "registry.digitalocean.com/kube-app-registry"
+        DEPLOYMENT_FILE = "deployment.yaml"
     }
 
     stages {
@@ -13,28 +14,40 @@ pipeline {
             }
         }
 
-        stage('Build and Push Image') {
+        stage('Build Docker Image') {
             steps {
-                sh """
-                    docker build -t ${REGISTRY}/${IMAGE_NAME}:latest .
-                    docker push ${REGISTRY}/${IMAGE_NAME}:latest
-                """
+                sh 'docker build -t $IMAGE_NAME .'
             }
         }
 
-        stage('Check KUBECONFIG') {
+        stage('Login to DOCR') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'DOCR_CREDENTIALS', usernameVariable: 'DOCR_USER', passwordVariable: 'DOCR_PASS')]) {
+                    sh """
+                        echo \$DOCR_PASS | docker login ${REGISTRY} -u \$DOCR_USER --password-stdin
+                    """
+                }
+            }
+        }
+
+        stage('Tag and Push to DOCR') {
+            steps {
+                sh "docker tag ${IMAGE_NAME} ${REGISTRY}/${IMAGE_NAME}:latest"
+                sh "docker push ${REGISTRY}/${IMAGE_NAME}:latest"
+            }
+        }
+
+        stage('Deploy to Kubernetes') {
             steps {
                 withCredentials([file(credentialsId: 'KUBECONFIG_FILE', variable: 'KUBECONFIG')]) {
                     sh '''
-                        echo "Checking if KUBECONFIG exists..."
-                        ls -l $KUBECONFIG || echo "KUBECONFIG file not found!"
-                        cat $KUBECONFIG || echo "Cannot read KUBECONFIG!"
+                        echo "Using KUBECONFIG: $KUBECONFIG"
                         export KUBECONFIG=$KUBECONFIG
-                        kubectl get nodes
+                        kubectl apply -f ${DEPLOYMENT_FILE}
+                        kubectl rollout status deployment/htmx-demo
                     '''
                 }
             }
         }
-        
     }
 }
