@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: htmx-demo
-          image: registry.digitalocean.com/htmx-demo/htmx-demo:latest
+          image: registry.digitalocean.com/kube-app-registry/htmx-demo:latest
           ports:
             - containerPort: 8080
       imagePullSecrets:

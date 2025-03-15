@@ -3,7 +3,7 @@ pipeline {
     
     environment {
         IMAGE_NAME = "htmx-demo"
-        REGISTRY = "registry.digitalocean.com/htmx-demo"
+        REGISTRY = "registry.digitalocean.com/kube-app-registry"
         DEPLOYMENT_FILE = "deployment.yaml"
         DO_CLUSTER = 'k8s-htmx'
         
